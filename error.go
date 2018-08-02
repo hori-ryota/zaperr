@@ -58,7 +58,17 @@ func AppendFields(err error, fields ...zapcore.Field) error {
 	}
 }
 
-func ToField(name string, err error) zapcore.Field {
+func ToField(err error) zapcore.Field {
+	if err == nil {
+		return zap.Skip()
+	}
+	if e, ok := err.(zapcore.ObjectMarshaler); ok {
+		return zap.Object("error with fields", e)
+	}
+	return zap.Error(err)
+}
+
+func ToNamedField(name string, err error) zapcore.Field {
 	if err == nil {
 		return zap.Skip()
 	}

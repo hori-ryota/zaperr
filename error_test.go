@@ -73,29 +73,61 @@ func TestAppendFields(t *testing.T) {
 
 func TestToField(t *testing.T) {
 	for _, tt := range []struct {
-		name string
-		in   error
-		want zapcore.FieldType
+		testName string
+		in       error
+		want     zapcore.FieldType
 	}{
 		{
-			name: "zaperr: Object",
-			in:   zaperr{},
-			want: zapcore.ObjectMarshalerType,
+			testName: "zaperr: Object",
+			in:       zaperr{},
+			want:     zapcore.ObjectMarshalerType,
 		},
 		{
-			name: "common error: not object",
-			in:   errors.New("error"),
-			want: zapcore.ErrorType,
+			testName: "common error: not object",
+			in:       errors.New("error"),
+			want:     zapcore.ErrorType,
 		},
 		{
-			name: "nil: skip",
-			in:   nil,
-			want: zapcore.SkipType,
+			testName: "nil: skip",
+			in:       nil,
+			want:     zapcore.SkipType,
 		},
 	} {
-		t.Run(tt.name, func(t *testing.T) {
-			f := ToField("name", tt.in)
+		t.Run(tt.testName, func(t *testing.T) {
+			f := ToField(tt.in)
 			assert.Equal(t, tt.want, f.Type)
 		})
 	}
+}
+
+func TestToNamedField(t *testing.T) {
+	for _, tt := range []struct {
+		testName string
+		name     string
+		in       error
+		want     zapcore.FieldType
+	}{
+		{
+			testName: "zaperr: Object",
+			in:       zaperr{},
+			name:     "name",
+			want:     zapcore.ObjectMarshalerType,
+		},
+		{
+			testName: "common error: not object",
+			name:     "name",
+			in:       errors.New("error"),
+			want:     zapcore.ErrorType,
+		},
+	} {
+		t.Run(tt.testName, func(t *testing.T) {
+			f := ToNamedField("name", tt.in)
+			assert.Equal(t, tt.want, f.Type)
+			assert.Equal(t, tt.name, f.Key)
+		})
+	}
+
+	t.Run("nil: skip", func(t *testing.T) {
+		assert.Equal(t, ToNamedField("testName", nil).Type, zapcore.SkipType)
+	})
 }
