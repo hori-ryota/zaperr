@@ -36,6 +36,12 @@ func Test_zaperr_AppendFields(t *testing.T) {
 	)
 }
 
+func Test_zaperr_Cause(t *testing.T) {
+	src := errors.New("error")
+	err := zaperr{err: src}
+	assert.Equal(t, src, err.Cause())
+}
+
 func TestAppendFields(t *testing.T) {
 	t.Run("nil: return nil", func(t *testing.T) {
 		assert.Nil(t, AppendFields(nil))

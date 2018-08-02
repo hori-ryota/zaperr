@@ -33,6 +33,11 @@ func (e *zaperr) AppendFields(fields ...zapcore.Field) {
 	e.fields = append(e.fields, fields...)
 }
 
+// for github.com/pkg/errors
+func (e *zaperr) Cause() error {
+	return e.err
+}
+
 func Fields(err error) []zapcore.Field {
 	if err == nil {
 		return nil
