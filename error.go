@@ -1,6 +1,7 @@
 package zaperr
 
 import (
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -16,6 +17,10 @@ type fieldser interface {
 
 type fieldsAppender interface {
 	AppendFields(...zapcore.Field)
+}
+
+type wrapper interface {
+	Wrap(message string)
 }
 
 func (e zaperr) Error() string {
@@ -34,8 +39,24 @@ func (e *zaperr) AppendFields(fields ...zapcore.Field) {
 }
 
 // for github.com/pkg/errors
-func (e *zaperr) Cause() error {
+func (e zaperr) Cause() error {
 	return e.err
+}
+
+// for github.com/pkg/errors
+func (e *zaperr) Wrap(message string) {
+	e.err = errors.Wrap(e.err, message)
+}
+
+// for github.com/pkg/errors
+func Wrap(err error, message string) error {
+	if e, ok := err.(wrapper); ok {
+		e.Wrap(message)
+		return err
+	}
+	return &zaperr{
+		err: errors.Wrap(err, message),
+	}
 }
 
 func Fields(err error) []zapcore.Field {

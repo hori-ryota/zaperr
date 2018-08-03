@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	wraperr "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -40,6 +41,15 @@ func Test_zaperr_Cause(t *testing.T) {
 	src := errors.New("error")
 	err := zaperr{err: src}
 	assert.Equal(t, src, err.Cause())
+	assert.Equal(t, src, wraperr.Cause(err))
+}
+
+func Test_zaperr_Wrap(t *testing.T) {
+	src := errors.New("error")
+	err := &zaperr{err: src}
+	wrapped := Wrap(err, "wrap")
+	assert.NotEqual(t, src.Error(), wrapped.Error())
+	assert.Equal(t, src, wraperr.Cause(wrapped))
 }
 
 func TestAppendFields(t *testing.T) {
