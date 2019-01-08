@@ -19,14 +19,14 @@ func Test_zaperr_Error(t *testing.T) {
 	assert.Equal(t, "error", zaperr{err: errors.New("error")}.Error())
 }
 
-func Test_zaperr_AppendFields(t *testing.T) {
+func Test_zaperr_WithFields(t *testing.T) {
 	err := zaperr{
 		err: errors.New("error"),
 		fields: []zapcore.Field{
 			zap.Int("1", 1),
 		},
 	}
-	err.AppendFields(zap.Int("2", 2))
+	err.WithFields(zap.Int("2", 2))
 	assert.Equal(t,
 		[]zapcore.Field{
 			zap.Int("1", 1),
@@ -52,12 +52,12 @@ func Test_zaperr_Wrap(t *testing.T) {
 	assert.Equal(t, src, wraperr.Cause(wrapped))
 }
 
-func TestAppendFields(t *testing.T) {
+func TestWithFields(t *testing.T) {
 	t.Run("nil: return nil", func(t *testing.T) {
-		assert.Nil(t, AppendFields(nil))
+		assert.Nil(t, WithFields(nil))
 	})
 	t.Run("not zaperr: return new zaperr", func(t *testing.T) {
-		err := AppendFields(errors.New("error"), zap.Int("1", 1))
+		err := WithFields(errors.New("error"), zap.Int("1", 1))
 		assert.Equal(t,
 			[]zapcore.Field{
 				zap.Int("1", 1),
@@ -74,7 +74,7 @@ func TestAppendFields(t *testing.T) {
 				zap.Int("1", 1),
 			},
 		}
-		err = AppendFields(err, zap.Int("2", 2))
+		err = WithFields(err, zap.Int("2", 2))
 		t.Log(fmt.Sprintf("%#v", err))
 		assert.Equal(t,
 			[]zapcore.Field{

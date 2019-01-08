@@ -16,11 +16,15 @@ type fieldser interface {
 }
 
 type fieldsAppender interface {
-	AppendFields(...zapcore.Field)
+	WithFields(...zapcore.Field)
 }
 
 type wrapper interface {
 	Wrap(message string)
+}
+
+type wrapfer interface {
+	Wrapf(format string, args ...interface{})
 }
 
 func (e zaperr) Error() string {
@@ -31,11 +35,16 @@ func (e zaperr) Fields() []zapcore.Field {
 	return append(e.fields, zap.Error(e.err))
 }
 
-func (e *zaperr) AppendFields(fields ...zapcore.Field) {
+func (e *zaperr) WithFields(fields ...zapcore.Field) {
 	if e == nil {
 		return
 	}
 	e.fields = append(e.fields, fields...)
+}
+
+// Deprecated: rename to WithFields
+func (e *zaperr) AppendFields(fields ...zapcore.Field) {
+	e.WithFields(fields...)
 }
 
 // for github.com/pkg/errors
@@ -49,6 +58,11 @@ func (e *zaperr) Wrap(message string) {
 }
 
 // for github.com/pkg/errors
+func (e *zaperr) Wrapf(format string, args ...interface{}) {
+	e.err = errors.Wrapf(e.err, format, args...)
+}
+
+// for github.com/pkg/errors
 func Wrap(err error, message string) error {
 	if e, ok := err.(wrapper); ok {
 		e.Wrap(message)
@@ -56,6 +70,17 @@ func Wrap(err error, message string) error {
 	}
 	return &zaperr{
 		err: errors.Wrap(err, message),
+	}
+}
+
+// for github.com/pkg/errors
+func Wrapf(err error, format string, args ...interface{}) error {
+	if e, ok := err.(wrapfer); ok {
+		e.Wrapf(format, args...)
+		return err
+	}
+	return &zaperr{
+		err: errors.Wrapf(err, format, args...),
 	}
 }
 
@@ -69,12 +94,12 @@ func Fields(err error) []zapcore.Field {
 	return []zapcore.Field{zap.Error(err)}
 }
 
-func AppendFields(err error, fields ...zapcore.Field) error {
+func WithFields(err error, fields ...zapcore.Field) error {
 	if err == nil {
 		return nil
 	}
 	if e, ok := err.(fieldsAppender); ok {
-		e.AppendFields(fields...)
+		e.WithFields(fields...)
 		return err
 	}
 
@@ -82,6 +107,11 @@ func AppendFields(err error, fields ...zapcore.Field) error {
 		err:    err,
 		fields: fields,
 	}
+}
+
+// Deprecated: rename to WithFields
+func AppendFields(err error, fields ...zapcore.Field) error {
+	return WithFields(err, fields...)
 }
 
 func ToField(err error) zapcore.Field {
