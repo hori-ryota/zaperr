@@ -1,142 +1,113 @@
 package zaperr
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-type zaperr struct {
-	err    error
-	fields []zapcore.Field
-}
-
-type fieldser interface {
-	Fields() []zapcore.Field
-}
-
-type fieldsAppender interface {
-	WithFields(...zapcore.Field)
-}
-
-type wrapper interface {
-	Wrap(message string)
-}
-
-type wrapfer interface {
-	Wrapf(format string, args ...interface{})
-}
-
-func (e zaperr) Error() string {
-	return e.err.Error()
-}
-
-func (e zaperr) Fields() []zapcore.Field {
-	return append(e.fields, zap.Error(e.err))
-}
-
-func (e *zaperr) WithFields(fields ...zapcore.Field) {
-	if e == nil {
-		return
-	}
-	e.fields = append(e.fields, fields...)
-}
-
-// Deprecated: rename to WithFields
-func (e *zaperr) AppendFields(fields ...zapcore.Field) {
-	e.WithFields(fields...)
-}
-
-// for github.com/pkg/errors
-func (e zaperr) Cause() error {
-	return e.err
-}
-
-// for github.com/pkg/errors
-func (e *zaperr) Wrap(message string) {
-	e.err = errors.Wrap(e.err, message)
-}
-
-// for github.com/pkg/errors
-func (e *zaperr) Wrapf(format string, args ...interface{}) {
-	e.err = errors.Wrapf(e.err, format, args...)
-}
-
-// for github.com/pkg/errors
-func Wrap(err error, message string) error {
-	if e, ok := err.(wrapper); ok {
-		e.Wrap(message)
-		return err
-	}
-	return &zaperr{
-		err: errors.Wrap(err, message),
-	}
-}
-
-// for github.com/pkg/errors
-func Wrapf(err error, format string, args ...interface{}) error {
-	if e, ok := err.(wrapfer); ok {
-		e.Wrapf(format, args...)
-		return err
-	}
-	return &zaperr{
-		err: errors.Wrapf(err, format, args...),
-	}
-}
-
-func Fields(err error) []zapcore.Field {
-	if err == nil {
-		return nil
-	}
-	if e, ok := err.(fieldser); ok {
-		return e.Fields()
-	}
-	return []zapcore.Field{zap.Error(err)}
-}
-
-func WithFields(err error, fields ...zapcore.Field) error {
-	if err == nil {
-		return nil
-	}
-	if e, ok := err.(fieldsAppender); ok {
-		e.WithFields(fields...)
-		return err
-	}
-
-	return &zaperr{
-		err:    err,
+func New(message string, fields ...zap.Field) error {
+	return zaperr{
+		source: errors.New(message),
 		fields: fields,
 	}
 }
 
-// Deprecated: rename to WithFields
-func AppendFields(err error, fields ...zapcore.Field) error {
-	return WithFields(err, fields...)
+func Errorf(format string, args ...interface{}) error {
+	return errors.Errorf(format, args...)
 }
 
-func ToField(err error) zapcore.Field {
+func Wrap(err error, message string, fields ...zap.Field) error {
+	if err == nil {
+		return nil
+	}
+	if err, ok := err.(zaperr); ok {
+		if len(fields) == 0 {
+			err.source = errors.Wrap(err.source, message)
+			return err
+		}
+		if len(err.fields) == 0 {
+			return WithFields(errors.Wrap(err.source, message), fields...)
+		}
+		return zaperr{
+			source:  err,
+			fields:  fields,
+			message: message,
+		}
+	}
+	return WithFields(errors.Wrap(err, message), fields...)
+}
+
+type zaperr struct {
+	source  error
+	fields  []zap.Field
+	message string
+}
+
+func (e zaperr) Error() string {
+	if e.message != "" {
+		return e.message + ": " + e.source.Error()
+	}
+	return e.source.Error()
+}
+
+func (e zaperr) Cause() error {
+	return e.source
+}
+
+func WithFields(err error, fields ...zap.Field) error {
+	if err == nil {
+		return nil
+	}
+	if err, ok := err.(zaperr); ok {
+		err.fields = append(err.fields, fields...)
+		return err
+	}
+	return zaperr{
+		source: err,
+		fields: fields,
+	}
+}
+
+func ToField(err error) zap.Field {
+	return ToNamedField("error", err)
+}
+
+func ToNamedField(key string, err error) zap.Field {
 	if err == nil {
 		return zap.Skip()
 	}
 	if e, ok := err.(zapcore.ObjectMarshaler); ok {
-		return zap.Object("error with fields", e)
+		return zap.Object(key, e)
 	}
-	return zap.Error(err)
-}
-
-func ToNamedField(name string, err error) zapcore.Field {
-	if err == nil {
-		return zap.Skip()
-	}
-	if e, ok := err.(zapcore.ObjectMarshaler); ok {
-		return zap.Object(name, e)
-	}
-	return zap.NamedError(name, err)
+	return zap.NamedError(key, err)
 }
 
 func (e zaperr) MarshalLogObject(enc zapcore.ObjectEncoder) error {
-	for _, f := range e.Fields() {
+	for _, f := range e.fields {
 		f.AddTo(enc)
 	}
+	if e.message != "" {
+		zap.String("message", e.message).AddTo(enc)
+	}
+	ToField(e.source).AddTo(enc)
 	return nil
+}
+
+func (e zaperr) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		if s.Flag('+') {
+			fmt.Fprintf(s, "%+v\n", e.source)
+			if e.message != "" {
+				fmt.Fprint(s, e.message)
+			}
+			return
+		}
+		fallthrough
+	case 's', 'q':
+		fmt.Fprint(s, e.Error())
+	}
 }
