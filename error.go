@@ -111,3 +111,31 @@ func (e zaperr) Format(s fmt.State, verb rune) {
 		fmt.Fprint(s, e.Error())
 	}
 }
+
+type Wrapper struct {
+	fields []zap.Field
+}
+
+func WrapperWith(fields ...zap.Field) Wrapper {
+	return Wrapper{fields: fields}
+}
+
+func (w Wrapper) New(message string, fields ...zap.Field) error {
+	return New(message, append(fields, w.fields...)...)
+}
+
+func (w Wrapper) Errorf(format string, args ...interface{}) error {
+	return WithFields(Errorf(format, args...), w.fields...)
+}
+
+func (w Wrapper) Wrap(err error, message string, fields ...zap.Field) error {
+	return Wrap(err, message, append(fields, w.fields...)...)
+}
+
+func (w Wrapper) WithFields(err error, fields ...zap.Field) error {
+	return WithFields(err, append(fields, w.fields...)...)
+}
+
+func (w Wrapper) WrapperWith(fields ...zap.Field) Wrapper {
+	return Wrapper{fields: append(w.fields, fields...)}
+}
