@@ -111,6 +111,14 @@ func TestCause(t *testing.T) {
 	assert.EqualError(t, errors.Cause(err), "error")
 }
 
+func TestUnwrap(t *testing.T) {
+	srcErr := errors.New("error")
+	var err error
+	err = zaperr.Wrap(srcErr, "wrap")
+	err = zaperr.Wrap(err, "wrap")
+	assert.True(t, errors.Is(err, srcErr))
+}
+
 func TestToField(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		core, observed := observer.New(zap.DebugLevel)

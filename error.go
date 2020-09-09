@@ -13,6 +13,7 @@ func New(message string, fields ...zap.Field) error {
 		source: errors.New(message),
 		fields: fields,
 	}
+
 }
 
 func Errorf(format string, args ...interface{}) error {
@@ -55,6 +56,10 @@ func (e zaperr) Error() string {
 
 func (e zaperr) Cause() error {
 	return e.source
+}
+
+func (e zaperr) Unwrap() error {
+	return e.Cause()
 }
 
 func WithFields(err error, fields ...zap.Field) error {
