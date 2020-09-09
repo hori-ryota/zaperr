@@ -112,11 +112,11 @@ func TestCause(t *testing.T) {
 }
 
 func TestUnwrap(t *testing.T) {
-	srcErr := errors.New("error")
+	srcErr := commonerr.New("error")
 	var err error
 	err = zaperr.Wrap(srcErr, "wrap")
 	err = zaperr.Wrap(err, "wrap")
-	assert.True(t, errors.Is(err, srcErr))
+	assert.True(t, commonerr.Is(err, srcErr))
 }
 
 func TestToField(t *testing.T) {
